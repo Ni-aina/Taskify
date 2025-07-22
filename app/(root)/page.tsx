@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import RootClient from "@/components/RootClient";
 import { syncUser } from "../action/user.action";
 
