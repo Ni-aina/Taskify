@@ -4,7 +4,7 @@ import Auth from "@/components/Auth";
 import Task from "@/components/Task";
 import CustomButton from "@/components/ui/customButton";
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, startTransition, useEffect, useOptimistic, useState } from "react";
 
 const RootClient = () => {
 
@@ -13,8 +13,17 @@ const RootClient = () => {
     const [errorMessage, setErrorMessage] = useState("");
     const [isPending, setIsPending] = useState(false);
     const [tasks, setTasks] = useState<TaskType[]>([]);
+    const [optimisticTasks, updateOptimisticTasks] = useOptimistic(
+        tasks,
+        (currentTasks, action: { type: "add" | "update" | "delete", payload: TaskType }) => {
+            if (action.type === "add") return [...currentTasks, action.payload];
+            if (action.type === "update") return currentTasks.map(item => item.id === action.payload.id ? action.payload : item);
+            if (action.type === "delete") return currentTasks.filter(item => item.id !== action.payload.id);
+            return currentTasks;
+        }
+    )
 
-    const handleReset = ()=> {
+    const handleReset = () => {
         setIdEdit(null);
         setIsPending(false);
         setErrorMessage("");
@@ -29,28 +38,44 @@ const RootClient = () => {
 
     const onFinish = async (id: number) => {
         const task = tasks.find(item => item.id === id);
+        if (!task) return;
+
+        startTransition(() => {
+            updateOptimisticTasks({
+                type: "update", payload: {
+                    ...task,
+                    status: task.status === "pending" ? "finished" : "pending"
+                }
+            })
+        })
+
         const res = await fetch(`/api/task/${id}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ 
-                input: task?.title, 
-                status: task?.status === "pending" ? "finished" : "pending"
+            body: JSON.stringify({
+                input: task.title,
+                status: task.status === "pending" ? "finished" : "pending"
             })
         })
 
         const { status, data } = await res.json();
 
-        if (status !== 200) {
-            return;
-        }
+        if (status !== 200) return;
 
         setTasks(prev => prev.map(item => item.id === data.id ? data : item))
         handleReset();
     }
 
     const onDelete = async (id: number) => {
+        const task = tasks.find(item => item.id === id);
+        if (!task) return;
+
+        startTransition(() => {
+            updateOptimisticTasks({ type: "delete", payload: task })
+        })
+
         const res = await fetch(`/api/task/${id}`, {
             method: "DELETE",
             headers: {
@@ -65,7 +90,7 @@ const RootClient = () => {
             return;
         }
 
-        setTasks(prev => prev.filter(item => item.id !== id))
+        setTasks(prev => prev.filter(item => item.id !== data.id))
         handleReset();
     }
 
@@ -74,6 +99,17 @@ const RootClient = () => {
         if (!input.trim()) return;
 
         if (idEdit) {
+            const task = tasks.find(item => item.id === idEdit);
+            if (!task) return;
+
+            startTransition(() => {
+                updateOptimisticTasks({
+                    type: "update", payload: {
+                        ...task,
+                        title: input
+                    }
+                })
+            })
 
             const res = await fetch(`/api/task/${idEdit}`, {
                 method: "PUT",
@@ -95,6 +131,16 @@ const RootClient = () => {
 
             return;
         }
+
+        startTransition(() => {
+            updateOptimisticTasks({
+                type: "add", payload: {
+                    id: Date.now(),
+                    title: input,
+                    status: "pending"
+                }
+            })
+        })
 
         const res = await fetch('/api/task', {
             method: "POST",
@@ -187,9 +233,9 @@ const RootClient = () => {
                             </CustomButton>
                     }
                 </form>
-                <div className="flex lg:max-w-2xl flex-col gap-5">
+                <div className="flex lg:max-w-3xl flex-col gap-5">
                     {
-                        tasks.map(item => <Task
+                        optimisticTasks.map(item => <Task
                             key={item.id}
                             {...item}
                             onFinish={onFinish}
