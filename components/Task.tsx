@@ -17,20 +17,20 @@ const Task = ({ ...props }: TaskType & TaskInterface) => {
     } = props;
 
     return (
-        <div className="flex flex-wrap justify-between gap-5">
+        <div className="flex flex-wrap justify-between items-center gap-5">
             <div className="flex items-baseline gap-5">
                 <h1 className="text-xl text-amber-700">{title}</h1>
-                <span className="text-sm">({status})</span>
+                <span className="text-sm text-blue-950">({status})</span>
             </div>
             <div className="flex flex-wrap gap-5 bg-gray">
                 <CustomButton
-                    className="bg-gray-600 border-gray-600 hover:text-gray-600"
+                    className="bg-gray-500 border-gray-500 hover:text-gray-500"
                     onClick={() => onDelete(id)}
                 >
                     Delete
                 </CustomButton>
                 <CustomButton
-                    className="bg-green-600 border-green-600 hover:text-green-600"
+                    className="bg-green-500 border-green-500 hover:text-green-500"
                     onClick={() => onEdit(id)}
                 >
                     Edit
@@ -39,7 +39,7 @@ const Task = ({ ...props }: TaskType & TaskInterface) => {
                     className="bg-red-500 border-red-500 hover:text-red-500"
                     onClick={() => onFinish(id)}
                 >
-                    Finish
+                    {status === "pending" ? "Finish" : "unFinish"}
                 </CustomButton>
             </div>
         </div>

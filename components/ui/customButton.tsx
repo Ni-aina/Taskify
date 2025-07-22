@@ -15,6 +15,7 @@ const CustomButton = ({ children, className, onClick, type = "submit" }: buttonI
         <button
             className={
                 `
+                min-w-[8rem]
                 px-5 py-2
                 border
                 rounded-md
